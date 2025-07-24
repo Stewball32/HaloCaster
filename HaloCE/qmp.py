@@ -93,9 +93,10 @@ class QMPResponseError(QMPError):
     """
     Represents erroneous QMP monitor reply
     """
+
     def __init__(self, reply: QMPMessage):
         try:
-            desc = reply['error']['desc']
+            desc = reply["error"]["desc"]
         except KeyError:
             desc = reply
         super().__init__(desc)
@@ -115,11 +116,11 @@ class QEMUMonitorProtocol:
     """
 
     #: Logger object for debugging messages
-    logger = logging.getLogger('QMP')
+    logger = logging.getLogger("QMP")
 
-    def __init__(self, address: SocketAddrT,
-                 server: bool = False,
-                 nickname: Optional[str] = None):
+    def __init__(
+        self, address: SocketAddrT, server: bool = False, nickname: Optional[str] = None
+    ):
         """
         Create a QEMUMonitorProtocol class.
 
@@ -137,7 +138,7 @@ class QEMUMonitorProtocol:
         self.__sockfile: Optional[TextIO] = None
         self._nickname = nickname
         if self._nickname:
-            self.logger = logging.getLogger('QMP').getChild(self._nickname)
+            self.logger = logging.getLogger("QMP").getChild(self._nickname)
         if server:
             self.__sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.__sock.bind(self.__address)
@@ -147,7 +148,7 @@ class QEMUMonitorProtocol:
         if isinstance(self.__address, tuple):
             family = socket.AF_INET
         else:
-            family = socket.AF_UNIX
+            family = socket.AF_UNIX  # type: ignore[unreachable]
         return socket.socket(family, socket.SOCK_STREAM)
 
     def __negotiate_capabilities(self) -> QMPMessage:
@@ -155,7 +156,7 @@ class QEMUMonitorProtocol:
         if greeting is None or "QMP" not in greeting:
             raise QMPConnectError
         # Greeting seems ok, negotiate capabilities
-        resp = self.cmd('qmp_capabilities')
+        resp = self.cmd("qmp_capabilities")
         if resp and "return" in resp:
             return greeting
         raise QMPCapabilitiesError
@@ -170,7 +171,7 @@ class QEMUMonitorProtocol:
             # and we are asserting only at static analysis time that it
             # has a particular shape.
             resp: QMPMessage = json.loads(data)
-            if 'event' in resp:
+            if "event" in resp:
                 self.logger.debug("<<< %s", resp)
                 self.__events.append(resp)
                 if not only_event:
@@ -222,18 +223,20 @@ class QEMUMonitorProtocol:
             if ret is None:
                 raise QMPConnectError("Error while reading from socket")
 
-    T = TypeVar('T')
+    T = TypeVar("T")
 
     def __enter__(self: T) -> T:
         # Implement context manager enter function.
         return self
 
-    def __exit__(self,
-                 # pylint: disable=duplicate-code
-                 # see https://github.com/PyCQA/pylint/issues/3619
-                 exc_type: Optional[Type[BaseException]],
-                 exc_val: Optional[BaseException],
-                 exc_tb: Optional[TracebackType]) -> None:
+    def __exit__(
+        self,
+        # pylint: disable=duplicate-code
+        # see https://github.com/PyCQA/pylint/issues/3619
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
         # Implement context manager exit function.
         self.close()
 
@@ -245,7 +248,7 @@ class QEMUMonitorProtocol:
         Figure out if the argument is in the port:host form.
         If it's not, it's probably a file path.
         """
-        components = address.split(':')
+        components = address.split(":")
         if len(components) == 2:
             try:
                 port = int(components[1])
@@ -267,7 +270,7 @@ class QEMUMonitorProtocol:
         @raise QMPCapabilitiesError if fails to negotiate capabilities
         """
         self.__sock.connect(self.__address)
-        self.__sockfile = self.__sock.makefile(mode='r')
+        self.__sockfile = self.__sock.makefile(mode="r")
         if negotiate:
             return self.__negotiate_capabilities()
         return None
@@ -291,7 +294,7 @@ class QEMUMonitorProtocol:
         """
         self.__sock.settimeout(timeout)
         self.__sock, _ = self.__sock.accept()
-        self.__sockfile = self.__sock.makefile(mode='r')
+        self.__sockfile = self.__sock.makefile(mode="r")
         return self.__negotiate_capabilities()
 
     def cmd_obj(self, qmp_cmd: QMPMessage) -> QMPMessage:
@@ -302,16 +305,19 @@ class QEMUMonitorProtocol:
         @return QMP response as a Python dict
         """
         self.logger.debug(">>> %s", qmp_cmd)
-        self.__sock.sendall(json.dumps(qmp_cmd).encode('utf-8'))
+        self.__sock.sendall(json.dumps(qmp_cmd).encode("utf-8"))
         resp = self.__json_read()
         if resp is None:
             raise QMPConnectError("Unexpected empty reply from server")
         self.logger.debug("<<< %s", resp)
         return resp
 
-    def cmd(self, name: str,
-            args: Optional[Dict[str, object]] = None,
-            cmd_id: Optional[object] = None) -> QMPMessage:
+    def cmd(
+        self,
+        name: str,
+        args: Optional[Dict[str, object]] = None,
+        cmd_id: Optional[object] = None,
+    ) -> QMPMessage:
         """
         Build a QMP command and send it to the QMP Monitor.
 
@@ -319,11 +325,11 @@ class QEMUMonitorProtocol:
         @param args: command arguments (dict)
         @param cmd_id: command id (dict, list, string or int)
         """
-        qmp_cmd: QMPMessage = {'execute': name}
+        qmp_cmd: QMPMessage = {"execute": name}
         if args:
-            qmp_cmd['arguments'] = args
+            qmp_cmd["arguments"] = args
         if cmd_id:
-            qmp_cmd['id'] = cmd_id
+            qmp_cmd["id"] = cmd_id
         return self.cmd_obj(qmp_cmd)
 
     def command(self, cmd: str, **kwds: object) -> QMPReturnValue:
@@ -331,16 +337,15 @@ class QEMUMonitorProtocol:
         Build and send a QMP command to the monitor, report errors if any
         """
         ret = self.cmd(cmd, kwds)
-        if 'error' in ret:
+        if "error" in ret:
             raise QMPResponseError(ret)
-        if 'return' not in ret:
+        if "return" not in ret:
             raise QMPProtocolError(
                 "'return' key not found in QMP response '{}'".format(str(ret))
             )
-        return cast(QMPReturnValue, ret['return'])
+        return cast(QMPReturnValue, ret["return"])
 
-    def pull_event(self,
-                   wait: Union[bool, float] = False) -> Optional[QMPMessage]:
+    def pull_event(self, wait: Union[bool, float] = False) -> Optional[QMPMessage]:
         """
         Pulls a single event.
 
@@ -413,10 +418,10 @@ class QEMUMonitorProtocol:
         """
         Send a file descriptor to the remote via SCM_RIGHTS.
         """
-        if self.__sock.family != socket.AF_UNIX:
+        if self.__sock.family != socket.AF_UNIX:  # type: ignore[unreachable]
             raise RuntimeError("Can't use SCM_RIGHTS on non-AF_UNIX socket.")
 
-        self.__sock.sendmsg(
-            [b' '],
-            [(socket.SOL_SOCKET, socket.SCM_RIGHTS, struct.pack('@i', fd))]
+        self.__sock.sendmsg(  # type: ignore[unreachable]
+            [b" "],
+            [(socket.SOL_SOCKET, socket.SCM_RIGHTS, struct.pack("@i", fd))],  # type: ignore[unreachable]
         )
