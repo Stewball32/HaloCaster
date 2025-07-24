@@ -17,3 +17,5 @@ scalene
 zstandard
 pympler
 mem_edit
+websockets
+matplotlib
