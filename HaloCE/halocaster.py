@@ -15,7 +15,9 @@ from SimpleWebSocketServer import SimpleWebSocketServer, WebSocket
 
 # Custom Imports
 import ui  # Consider renaming the alias if 'ui#2' is necessary
-from read_memory import MemoryReader
+
+# from read_memory import MemoryReader
+from read_linux import MemoryReader
 from read_game import GameReader
 import websocket_server  # Importing the websocket server module
 
@@ -23,7 +25,7 @@ import websocket_server  # Importing the websocket server module
 # from memory_mappings_and_offsets import *
 
 memory_reader = MemoryReader()
-game_reader = GameReader(mem_reader=memory_reader)
+game_reader = GameReader(memory_reader=memory_reader)
 
 
 clients = []
