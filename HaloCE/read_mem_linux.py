@@ -29,11 +29,10 @@ class MemoryReader:
     _process: LinuxProcess | WindowsProcess
     qmp_proxy: QmpProxy
 
-    def __init__(self, use_pymem: bool = True):
+    def __init__(self):
         self.qmp_proxy = QmpProxy()
         self.attach_pymem_to_xemu()
 
-        self.use_pymem = use_pymem
         self._pymem_cache = {}
         self.pymem_counter = 0
         self._memory_cache = {}
@@ -76,6 +75,12 @@ class MemoryReader:
                 continue
 
             self.process_id = proc.pid
+            self._process = OpenProcess(
+                pid=self.process_id
+            )  # test if we can open the process
+            if not self._process:
+                raise Exception(f"Could not open process {self.process_id}")
+
             return self.process_id
         return None
 
@@ -103,39 +108,7 @@ class MemoryReader:
         Cache snapshots of large segments of contiguous memory for future lookups.
         This cache should be invalidated and repopulated every tick by calling invalidate_memory_cache().
         """
-
-        def add_range_to_cache(base_address, size, description=None):
-            """Helper function to add a memory range to the cache."""
-            if base_address and size > 0:
-                self.add_to_cache(base_address, size)
-            else:
-                if description:
-                    print(
-                        f"Warning: Skipping caching {description} due to invalid address or size."
-                    )
-
-        # Game state
-        add_range_to_cache(
-            self.read_u32(0x2E2D14), self.read_u32(0x32E4A), "game state"
-        )
-
-        # Spawns from tags cache
-        global_scenario_address = self.read_u32(0x39BE5C)
-        first_spawn_address = self.read_s32(global_scenario_address + 856)
-        if first_spawn_address:
-            spawn_count = self.read_s32(global_scenario_address + 852)
-            add_range_to_cache(
-                first_spawn_address, 52 * spawn_count, "spawns from tags cache"
-            )
-
-        # Observer camera
-        add_range_to_cache(0x271550, 688 * 4, "observer camera")
-
-        # Object type definitions
-        # FIXME: Adjust size calculation for accuracy
-        add_range_to_cache(
-            0x1FC0D0, (0x1FCBA4 - 0x1FC0D0) * 2, "object type definitions"
-        )
+        pass
 
     def invalidate_memory_cache(self):
         self._memory_cache.clear()
@@ -223,6 +196,9 @@ class MemoryReader:
         """
         Reads memory from either the cache or the live memory using different methods depending on the address.
         """
+
+        value = self._process.read_process_memory(address, int, 8)
+        return value
 
         def update_known_address(addr, val, host_addr):
             """Helper function to update the known_addresses dictionary."""
@@ -321,25 +297,25 @@ class MemoryReader:
     def read_string(self, address, length=128, *args, **kwargs):
         return self.read_memory(address, "string", byte=length, *args, **kwargs)
 
-    def read_wchar(self, address, length=128, *args, **kwargs):
-        return (
-            self.read_bytes(address, length, *args, **kwargs)
-            .decode("utf-16")
-            .split("\x00", 1)[0]
-        )
+    # def read_wchar(self, address, length=128, *args, **kwargs):
+    #     return (
+    #         self.read_bytes(address, length, *args, **kwargs)
+    #         .decode("utf-16")
+    #         .split("\x00", 1)[0]
+    #     )
 
-    def write_bytes(
-        self, address, value, length, is_guest_address=True, *args, **kwargs
-    ):
-        if is_guest_address:
-            address = self.get_host_address(address)
-        return self._pymem.write_bytes(address, value, length)
+    # def write_bytes(
+    #     self, address, value, length, is_guest_address=True, *args, **kwargs
+    # ):
+    #     if is_guest_address:
+    #         address = self.get_host_address(address)
+    #     return self._pymem.write_bytes(address, value, length)
 
-    def get_formatted_bytes(self, address, length, columns=32):
+    # def get_formatted_bytes(self, address, length, columns=32):
 
-        data = self.read_bytes(address, length)
-        data_string = [
-            data.hex(" ")[i : i + 3 * columns].strip()
-            for i in range(0, len(data.hex(" ")), 3 * columns)
-        ]
-        return data_string
+    #     data = self.read_bytes(address, length)
+    #     data_string = [
+    #         data.hex(" ")[i : i + 3 * columns].strip()
+    #         for i in range(0, len(data.hex(" ")), 3 * columns)
+    #     ]
+    #     return data_string

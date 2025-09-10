@@ -17,8 +17,8 @@ from SimpleWebSocketServer import SimpleWebSocketServer, WebSocket
 import ui  # Consider renaming the alias if 'ui#2' is necessary
 
 # from read_memory import MemoryReader
-from read_linux import MemoryReader
-from read_game import GameReader
+from read_mem_linux import MemoryReader
+from read_game_linux import GameReader
 import websocket_server  # Importing the websocket server module
 
 # from database import DBConnector
